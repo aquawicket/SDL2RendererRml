@@ -3,7 +3,7 @@
  *
  * For the latest information, see http://github.com/mikke89/RmlUi
  *
- * Copyright (c) 2008-2010 CodePoint Ltd, Shift Technology Ltd
+ * Copyright (c) 2008-2010 Nuno Silva
  * Copyright (c) 2019 The RmlUi Team, and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -15,7 +15,7 @@
  *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,45 +25,59 @@
  * THE SOFTWARE.
  *
  */
- /*
-	Code originated from: 
-	RmlUi file interface for the shell examples.
-	@author Lloyd Weehuizen
- */
 
-#ifndef FILEINTERFACESDL2_H
-#define FILEINTERFACESDL2_H
+#ifndef APP_H
+#define APP_H
 
-#include <RmlUi/Core/Types.h>
-#include <RmlUi/Core/FileInterface.h>
+#ifdef RMLUI_PLATFORM_WIN32
+#include <windows.h>
+#endif
 
+#ifdef IOS
+	#import <UIKit/UIKit.h>
+#endif
 
+#include <SDL.h>
+#include <RmlUi/Core.h>
+#include <RmlUi/Core/Input.h>
+#include <RmlUi/Debugger/Debugger.h>
 
-class FileInterfaceSDL2 : public Rml::FileInterface
+#include "FileInterfaceSDL2.h"
+#include "SystemInterfaceSDL2.h"
+#include "RenderInterfaceSDL2.h"
+
+#include <string.h>
+
+class App
 {
 public:
-	FileInterfaceSDL2(const Rml::String& root);
-	virtual ~FileInterfaceSDL2();
-
-	static Rml::String FindSamplesRoot();
-
-	/// Opens a file.		
-	Rml::FileHandle Open(const Rml::String& path) override;
-
-	/// Closes a previously opened file.		
-	void Close(Rml::FileHandle file) override;
-
-	/// Reads data from a previously opened file.		
-	size_t Read(void* buffer, size_t size, Rml::FileHandle file) override;
-
-	/// Seeks to a point in a previously opened file.		
-	bool Seek(Rml::FileHandle file, long offset, int origin) override;
-
-	/// Returns the current position of the file pointer.		
-	size_t Tell(Rml::FileHandle file) override;
-
-private:
-	Rml::String root;
+	App(int argc, char** argv) {};
+	static void init();
+	static void loop();
+	static void draw_background(SDL_Renderer* renderer, int w, int h);
+	static void do_frame();
+	static void exit();
+	
+	static Rml::String mTitle;
+	static SDL_Window* mWindow;
+	static SDL_Renderer* mRenderer;
+	static Rml::Context* mContext;
+	static RmlUiSDL2SystemInterface mSystemInterface;
+	static int window_width;
+	static int window_height;
+	static bool active;
 };
+
+
+
+#ifdef IOS
+@interface iphoneViewerAppDelegate : NSObject <UIApplicationDelegate, UIAccelerometerDelegate>{
+	UIAccelerationValue        accel[3];
+}
+
+@property (nonatomic, retain) UIWindow *_window;
+- (void)updateScene;
+@end
+#endif //ISO
 
 #endif

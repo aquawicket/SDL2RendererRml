@@ -28,8 +28,8 @@
 
 #include "GifAnimate.h"
 
-bool LoadGifAnimation(SDL_Renderer* renderer, const Rml::String& source, Rml::TextureHandle& texture_handle, Rml::Vector2i& texture_dimensions) {
-
+bool LoadGifAnimation(SDL_Renderer* renderer, const Rml::String& source, Rml::TextureHandle& texture_handle, Rml::Vector2i& texture_dimensions) 
+{
     size_t i;
     for (i = source.length() - 1; i > 0; i--)
     {
@@ -70,8 +70,8 @@ bool LoadGifAnimation(SDL_Renderer* renderer, const Rml::String& source, Rml::Te
     return false;
 }
 
-SDL_Texture* GetGifAnimation(const Rml::TextureHandle texture) {
-
+SDL_Texture* GetGifAnimation(const Rml::TextureHandle texture) 
+{
     if (gif_map.find(texture) != gif_map.end()) 
     {
         GifData* g = &gif_map[texture];

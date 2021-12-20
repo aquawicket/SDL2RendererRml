@@ -26,58 +26,37 @@
  *
  */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef FRAMERATE_H
+#define FRAMERATE_H
 
-#ifdef RMLUI_PLATFORM_WIN32
-#include <windows.h>
-#endif
+#define FRAME_VALUES 30
 
-#ifdef IOS
-	#import <UIKit/UIKit.h>
-#endif
-
-#include <SDL.h>
-#include <RmlUi/Core.h>
-#include <RmlUi/Core/Input.h>
-#include <RmlUi/Debugger/Debugger.h>
-
-#include "FileInterfaceSDL2.h"
-#include "SystemInterfaceSDL2.h"
-#include "RenderInterfaceSDL2.h"
-
-#include <string.h>
-
-
-class App
+class Framerate
 {
 public:
-	App(int argc, char** argv) {};
-	static void init();
-	static void loop();
-	static void draw_background(SDL_Renderer* renderer, int w, int h);
-	static void do_frame();
-	static void exit();
-	
-	static SDL_Window* mScreen;
-	static SDL_Renderer* mRenderer;
-	static Rml::Context* mContext;
-	static RmlUiSDL2SystemInterface SystemInterface;
-	static int window_width;
-	static int window_height;
-	static bool active;
+	static long GetTicks();
+	static int GetFramerate();
+	static void SetFramerate(const int& fps);
+	static void StartFramerate();
+	static void LimitFramerate(const int& fps = 60);
+	static unsigned long GetFrames();
+	static void StartFps();
+	static void UpdateFps();
+	static unsigned int GetFps();
+
+private:
+	//Frame limiter
+	static long lastSecond;
+	static long now;
+	static long lastFrame;
+	static int _fps;
+	static int ticksPerFrame;
+
+	//FPS Counter
+	static long frametimes[FRAME_VALUES]; // An array to store frame times:
+	static long frametimelast; // Last calculated GetTicks()
+	static long framecount; // total frames rendered
+	static float framespersecond;
 };
-
-
-
-#ifdef IOS
-@interface iphoneViewerAppDelegate : NSObject <UIApplicationDelegate, UIAccelerometerDelegate>{
-	UIAccelerationValue        accel[3];
-}
-
-@property (nonatomic, retain) UIWindow *_window;
-- (void)updateScene;
-@end
-#endif //ISO
 
 #endif

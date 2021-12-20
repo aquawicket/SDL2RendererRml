@@ -29,8 +29,8 @@
 #ifndef GIFANIMATE_H
 #define GIFANIMATE_H
 #include <SDL_image.h>
-#include <map>
 #include <RmlUi/Core/Types.h>
+#include <map>
 
 struct GifData 
 {
