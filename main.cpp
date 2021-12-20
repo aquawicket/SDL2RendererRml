@@ -41,37 +41,6 @@ RmlUiSDL2SystemInterface App::SystemInterface;
 #endif
 bool App::active;
 	
-	
-bool ERR(std::string message, std::string lastError = "") {
-	std::string full_message = "ERROR: "+ message + "\n" + lastError + "\n";
-	printf("%s ", full_message.c_str());
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "ERROR", full_message.c_str(), NULL);
-	//throw;
-	return false;
-}
-
-bool WARN(std::string message, std::string lastError = "") {
-	std::string full_message = "Warning: " + message + "\n" + lastError + "\n";
-	printf("%s ", full_message.c_str());
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Warning", full_message.c_str(), NULL);
-	return true;
-}
-
-static void draw_background(SDL_Renderer* renderer, int w, int h)
-{
-	SDL_Color col[2] = {{ 100, 100, 100, 255 }, { 150, 150, 150, 255 }};
-	SDL_Rect rect({ 0,0,8,8 });
-	int i, x, y;
-	for (y = 0; y < h; y += rect.h) {
-		for (x = 0; x < w; x += rect.w) {
-			i = (((x ^ y) >> 3) & 1);
-			rect.x = x;
-			rect.y = y;
-			SDL_SetRenderDrawColor(renderer, col[i].r, col[i].g, col[i].b, col[i].a);
-			SDL_RenderFillRect(renderer, &rect);
-		}
-	}
-}
 
 int main(int argc, char** argv)
 {
@@ -86,20 +55,14 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-App::App(int argc, char** argv)
-{
-
-}
-
-
 void App::init()
 {
 #ifdef RMLUI_PLATFORM_WIN32
-	AllocConsole();
+	//AllocConsole();
 #endif
     SDL_SetMainReady(); //Bypass SDLmain  //https://wiki.libsdl.org/SDL_SetMainReady
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-		ERR("ERROR: SDL_Init( SDL_INIT_VIDEO ) failed", SDL_GetError());
+		printf("ERROR: SDL_Init( SDL_INIT_VIDEO ) failed: %s\n", SDL_GetError());
 
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
 #if defined(ANDROID) || defined(IOS)
@@ -114,38 +77,42 @@ void App::init()
     SDL_Window* screen;
     SDL_Renderer* renderer;
     if(SDL_CreateWindowAndRenderer(window_width, window_height, SDL_WINDOW_RESIZABLE, &screen, &renderer) < 0)
-        ERR("SDL_Window* invalid", SDL_GetError());
+        printf("SDL_Window* invalid: %s\n", SDL_GetError());
 #else
-	SDL_Window* screen = SDL_CreateWindow("RmlUi SDL2 with SDL_Renderer test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_RESIZABLE);
+	SDL_Window* screen = SDL_CreateWindow("RmlUi SDL2 with SDL_Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_RESIZABLE);
 	if (!screen)
-		ERR("SDL_Window* invalid", SDL_GetError());
+		printf("SDL_Window* invalid: %s\n", SDL_GetError());
 	mScreen = screen;
 
 	SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (!renderer)
-		ERR("renderer invalid", SDL_GetError());
+		printf("renderer invalid: %s\n", SDL_GetError());
 	mRenderer = renderer;
 #endif
     
 	SDL_RendererInfo info;
 	if (SDL_GetRendererInfo(mRenderer, &info) < 0)
-		ERR("SDL_GetRendererInfo() failed", SDL_GetError());
+		printf("SDL_GetRendererInfo() failed: %s\n", SDL_GetError());
 
-	printf("Render Driver = %s\n", std::string(info.name).c_str());
+	// Print the SDL_Render name, and display it in the title bar
+	Rml::String renderer_name = info.name;
+	printf("SDL_Renderer Driver = %s\n", renderer_name.c_str());
+	SDL_SetWindowTitle(screen, Rml::String("SDL_Renderer RmlUi - " + renderer_name).c_str());
 
 	RmlUiSDL2Renderer Renderer(mRenderer, mScreen);
 
-	Rml::String root = ShellFileInterface::FindSamplesRoot();
-	ShellFileInterface FileInterface(root);
+	Rml::String root = FileInterfaceSDL2::FindSamplesRoot();
+	FileInterfaceSDL2 FileInterface(root);
 
 	Rml::SetFileInterface(&FileInterface);
 	Rml::SetRenderInterface(&Renderer);
 	Rml::SetSystemInterface(&SystemInterface);
 
 	if (!Rml::Initialise())
-		ERR("Rml::Initialise() failed");
+		printf("Rml::Initialise() failed\n");
 
-	struct FontFace {
+	struct FontFace 
+	{
 		Rml::String filename;
 		bool fallback_face;
 	};
@@ -166,7 +133,7 @@ void App::init()
 	mContext = Context;
 
 	Rml::Debugger::Initialise(Context);
-	Rml::ElementDocument* Document = Context->LoadDocument("assets/demo.rml");
+	Rml::ElementDocument* Document = Context->LoadDocument("assets/demo.rml"); //Path to resources
 
 	if (Document) {
 		Document->Show();
@@ -190,7 +157,22 @@ void App::loop()
 	}
 }
 	
-	
+void App::draw_background(SDL_Renderer* renderer, int w, int h)
+{
+	SDL_Color col[2] = { { 100, 100, 100, 255 }, { 150, 150, 150, 255 } };
+	SDL_Rect rect({ 0,0,8,8 });
+	int i, x, y;
+	for (y = 0; y < h; y += rect.h) {
+		for (x = 0; x < w; x += rect.w) {
+			i = (((x ^ y) >> 3) & 1);
+			rect.x = x;
+			rect.y = y;
+			SDL_SetRenderDrawColor(renderer, col[i].r, col[i].g, col[i].b, col[i].a);
+			SDL_RenderFillRect(renderer, &rect);
+		}
+	}
+}
+
 void App::do_frame()
 {
 	SDL_Event event;
@@ -250,4 +232,3 @@ void App::exit()
     SDL_DestroyWindow(mScreen);
     SDL_Quit();
 }
-
