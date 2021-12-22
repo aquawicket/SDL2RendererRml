@@ -25,51 +25,43 @@
  * THE SOFTWARE.
  *
  */
+ /*
+	Code originated from: 
+	RmlUi file interface for the shell examples.
+	@author Lloyd Weehuizen
+ */
 
-#include <FileInterfaceSDL2.h>
-#include <stdio.h>
+#ifndef FILEINTERFACE_H
+#define FILEINTERFACE_H
 
-FileInterfaceSDL2::FileInterfaceSDL2(const Rml::String& root) : root(root)
+#include <RmlUi/Core/Types.h>
+#include <RmlUi/Core/FileInterface.h>
+
+
+class FileInterface : public Rml::FileInterface
 {
-}
+public:
+	FileInterface(const Rml::String& root);
+	virtual ~FileInterface();
 
-FileInterfaceSDL2::~FileInterfaceSDL2()
-{
-}
+	static Rml::String FindAssets(Rml::String& argv_file);
 
-// Opens a file.
-Rml::FileHandle FileInterfaceSDL2::Open(const Rml::String& path)
-{
-	// Attempt to open the file relative to the application's root.
-	FILE* fp = fopen((root + path).c_str(), "rb");
-	if (fp != nullptr)
-		return (Rml::FileHandle) fp;
+	/// Opens a file.		
+	Rml::FileHandle Open(const Rml::String& path) override;
 
-	// Attempt to open the file relative to the current working directory.
-	fp = fopen(path.c_str(), "rb");
-	return (Rml::FileHandle) fp;
-}
+	/// Closes a previously opened file.		
+	void Close(Rml::FileHandle file) override;
 
-// Closes a previously opened file.
-void FileInterfaceSDL2::Close(Rml::FileHandle file)
-{
-	fclose((FILE*) file);
-}
+	/// Reads data from a previously opened file.		
+	size_t Read(void* buffer, size_t size, Rml::FileHandle file) override;
 
-// Reads data from a previously opened file.
-size_t FileInterfaceSDL2::Read(void* buffer, size_t size, Rml::FileHandle file)
-{
-	return fread(buffer, 1, size, (FILE*) file);
-}
+	/// Seeks to a point in a previously opened file.		
+	bool Seek(Rml::FileHandle file, long offset, int origin) override;
 
-// Seeks to a point in a previously opened file.
-bool FileInterfaceSDL2::Seek(Rml::FileHandle file, long offset, int origin)
-{
-	return fseek((FILE*) file, offset, origin) == 0;
-}
+	/// Returns the current position of the file pointer.		
+	size_t Tell(Rml::FileHandle file) override;
 
-// Returns the current position of the file pointer.
-size_t FileInterfaceSDL2::Tell(Rml::FileHandle file)
-{
-	return ftell((FILE*) file);
-}
+	static Rml::String mRoot;
+};
+
+#endif

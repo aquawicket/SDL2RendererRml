@@ -26,26 +26,26 @@
  *
  */
 
-#include "FileInterfaceSDL2.h"
+#include "FileInterface.h"
 #include <RmlUi/Core/StringUtilities.h>  //Rml::StringUtilities::Replace
 #include <iostream>
 
 #ifdef RMLUI_PLATFORM_WIN32
-	#include "Shlwapi.h"      // GetModuleFileName
+	#include <Shlwapi.h>      // GetModuleFileName
 	#include <direct.h>       // chdir
 #endif
 #ifdef RMLUI_PLATFORM_MACOSX
 	#include <mach-o/dyld.h>  // _NSGetExecutablePath
 	#include <limits.h>	      //  PATH_MAX
-	#include "unistd.h"
+	#include <unistd.h>
 #endif
 #ifdef RMLUI_PLATFORM_LINUX
 	#include <linux/limits.h> // PATH_MAX
-	#include "unistd.h"
+	#include <unistd.h>
 #endif
 #include <sys/stat.h>
 
-Rml::String FileInterfaceSDL2::FindSamplesRoot(Rml::String& argv_file)
+Rml::String FileInterface::FindAssets(Rml::String& argv_file)
 {
 	if (!argv_file.empty()) {
 		struct stat buff;
@@ -55,8 +55,8 @@ Rml::String FileInterfaceSDL2::FindSamplesRoot(Rml::String& argv_file)
 			std::size_t second = argv_file.find_last_of("\\/", last - 1);
 			std::string root = argv_file.substr(0, second+1);
 			argv_file = argv_file.substr(second+1);
-			printf("the root is = %s\n", root.c_str());
-			printf("the file is = %s\n", argv_file.c_str());
+			printf("root = %s\n", root.c_str());
+			printf("argv_file = %s\n", argv_file.c_str());
 			return root;
 		}
 	}
@@ -68,6 +68,7 @@ Rml::String FileInterfaceSDL2::FindSamplesRoot(Rml::String& argv_file)
 	char buffer[MAX_PATH];
 	GetModuleFileName(NULL, buffer, MAX_PATH);
 	appPath = Rml::String(buffer);
+	appPath = Rml::StringUtilities::Replace(appPath, '\\', '/'); //normalize windows backslashes 
 #endif
 
 #ifdef RMLUI_PLATFORM_MACOSX
@@ -84,16 +85,15 @@ Rml::String FileInterfaceSDL2::FindSamplesRoot(Rml::String& argv_file)
 		printf("ERROR: could not get appPath from /proc/self/exe \n");
 	appPath = Rml::String(buf);
 #endif
+	
 
 	printf("appPath = %s \n", appPath.c_str());
 	std::size_t found = appPath.find_last_of("/");
 	appPath = appPath.substr(0,found); //point the path to the app folder by removing the executbale from the end
 	
 	Rml::String basePath = appPath + "/";
-	basePath = Rml::StringUtilities::Replace(basePath, '\\', '/'); //normalize windows backslashes 
-
 	for (unsigned int i = 0; i < 15; i++) { //Start at the top and go back N levels in search of our assets location
-		Rml::String tryPath = basePath + "Samples";
+		Rml::String tryPath = basePath + "assets";
 
 #ifdef RMLUI_PLATFORM_WIN32
 		Rml::String realPath;
@@ -107,21 +107,26 @@ Rml::String FileInterfaceSDL2::FindSamplesRoot(Rml::String& argv_file)
 					printf("ERROR: _chdir failed \n");
 					return "";
 				}
-				return realPath;
+				std::size_t found = realPath.find_last_of("/");
+				realPath = realPath.substr(0, found);
+				return (realPath+"/");
 			}
 		}
 #endif
 
-#ifdef RMLUI_PLATFORM_MACOSX
-		char* realPath = realpath(tryPath.c_str(), NULL);
-		if (realPath) {
+#if defined(RMLUI_PLATFORM_MACOSX) || defined(IOS)
+		char* rp = realpath(tryPath.c_str(), NULL);
+		if (rp) {
 			struct stat buf;
-			if(stat(realPath, &buf) == 0){ //does path exist?
-				if( chdir(realPath) != 0){
+			if(stat(rp, &buf) == 0){ //does path exist?
+				if( chdir(rp) != 0){
 					printf("ERROR: chdir failed \n");
 					return "";
 				}
-				return (Rml::String(realPath)+"/");
+				Rml::String realPath = rp;
+				std::size_t found = realPath.find_last_of("/");
+				realPath = realPath.substr(0, found);
+				return realPath+"/";
 			}
 		}
 #endif
@@ -136,7 +141,9 @@ Rml::String FileInterfaceSDL2::FindSamplesRoot(Rml::String& argv_file)
 					printf("ERROR: chdir failed \n");
 					return "";
 				}
-				return Rml::String(realPath);
+				std::size_t found = realPath.find_last_of("/");
+				realPath = realPath.substr(0, found);
+				return realPath+"/";
 			}
 		}
 		else {

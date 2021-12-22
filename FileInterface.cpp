@@ -3,7 +3,7 @@
  *
  * For the latest information, see http://github.com/mikke89/RmlUi
  *
- * Copyright (c) 2008-2010 Nuno Silva
+ * Copyright (c) 2008-2010 CodePoint Ltd, Shift Technology Ltd
  * Copyright (c) 2019 The RmlUi Team, and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,22 +25,54 @@
  * THE SOFTWARE.
  *
  */
-#ifndef SYSTEMINTEFACESDL2_H
-#define SYSTEMINTEFACESDL2_H
 
-#include <RmlUi/Core/SystemInterface.h>
-#include <RmlUi/Core/Input.h>
+#include "FileInterface.h"
+#include <stdio.h>
 
-#include <SDL.h>
+Rml::String FileInterface::mRoot;
 
-class RmlUiSDL2SystemInterface : public Rml::SystemInterface
+FileInterface::FileInterface(const Rml::String& root)
 {
-public:
-    Rml::Input::KeyIdentifier TranslateKey(SDL_Keycode sdlkey);
-    int TranslateMouseButton(Uint8 button);
-	int GetKeyModifiers();
-	
-	double GetElapsedTime() override;
-    bool LogMessage(Rml::Log::Type type, const Rml::String& message) override;
-};
-#endif
+	mRoot = root;
+}
+
+FileInterface::~FileInterface()
+{
+}
+
+// Opens a file.
+Rml::FileHandle FileInterface::Open(const Rml::String& path)
+{
+	// Attempt to open the file relative to the application's root.
+	FILE* fp = fopen((mRoot + path).c_str(), "rb");
+	if (fp != nullptr)
+		return (Rml::FileHandle) fp;
+
+	// Attempt to open the file relative to the current working directory.
+	fp = fopen(path.c_str(), "rb");
+	return (Rml::FileHandle) fp;
+}
+
+// Closes a previously opened file.
+void FileInterface::Close(Rml::FileHandle file)
+{
+	fclose((FILE*) file);
+}
+
+// Reads data from a previously opened file.
+size_t FileInterface::Read(void* buffer, size_t size, Rml::FileHandle file)
+{
+	return fread(buffer, 1, size, (FILE*) file);
+}
+
+// Seeks to a point in a previously opened file.
+bool FileInterface::Seek(Rml::FileHandle file, long offset, int origin)
+{
+	return fseek((FILE*) file, offset, origin) == 0;
+}
+
+// Returns the current position of the file pointer.
+size_t FileInterface::Tell(Rml::FileHandle file)
+{
+	return ftell((FILE*) file);
+}

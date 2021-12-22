@@ -3,7 +3,7 @@
  *
  * For the latest information, see http://github.com/mikke89/RmlUi
  *
- * Copyright (c) 2008-2010 CodePoint Ltd, Shift Technology Ltd
+ * Copyright (c) 2008-2010 Nuno Silva
  * Copyright (c) 2019 The RmlUi Team, and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,45 +25,23 @@
  * THE SOFTWARE.
  *
  */
- /*
-	Code originated from: 
-	RmlUi file interface for the shell examples.
-	@author Lloyd Weehuizen
- */
+ 
+#ifndef SYSTEMINTEFACE_H
+#define SYSTEMINTEFACE_H
 
-#ifndef FILEINTERFACESDL2_H
-#define FILEINTERFACESDL2_H
-
-#include <RmlUi/Core/Types.h>
-#include <RmlUi/Core/FileInterface.h>
+#include <SDL.h>
+#include <RmlUi/Core/SystemInterface.h>
+#include <RmlUi/Core/Input.h>
 
 
-
-class FileInterfaceSDL2 : public Rml::FileInterface
+class SystemInterface : public Rml::SystemInterface
 {
 public:
-	FileInterfaceSDL2(const Rml::String& root);
-	virtual ~FileInterfaceSDL2();
-
-	static Rml::String FindSamplesRoot(Rml::String& argv_file);
-
-	/// Opens a file.		
-	Rml::FileHandle Open(const Rml::String& path) override;
-
-	/// Closes a previously opened file.		
-	void Close(Rml::FileHandle file) override;
-
-	/// Reads data from a previously opened file.		
-	size_t Read(void* buffer, size_t size, Rml::FileHandle file) override;
-
-	/// Seeks to a point in a previously opened file.		
-	bool Seek(Rml::FileHandle file, long offset, int origin) override;
-
-	/// Returns the current position of the file pointer.		
-	size_t Tell(Rml::FileHandle file) override;
-
-private:
-	Rml::String root;
+    Rml::Input::KeyIdentifier TranslateKey(SDL_Keycode sdlkey);
+    int TranslateMouseButton(Uint8 button);
+	int GetKeyModifiers();
+	
+	double GetElapsedTime() override;
+    bool LogMessage(Rml::Log::Type type, const Rml::String& message) override;
 };
-
 #endif

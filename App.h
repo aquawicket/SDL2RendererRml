@@ -30,55 +30,52 @@
 #define APP_H
 
 #ifdef RMLUI_PLATFORM_WIN32
-#include <windows.h>
+	#include <windows.h>
 #endif
-
-#ifdef IOS
-	#import <UIKit/UIKit.h>
-#endif
-
+#include <string.h>
 #include <SDL.h>
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Debugger/Debugger.h>
-
-#include "FileInterfaceSDL2.h"
-#include "SystemInterfaceSDL2.h"
-#include "RenderInterfaceSDL2.h"
-
-#include <string.h>
+#include "FileInterface.h"
+#include "SystemInterface.h"
+#include "RenderInterface.h"
 
 class App
 {
 public:
-	App(){};
 	static void init();
 	static void loop();
-	static void draw_background(SDL_Renderer* renderer, int w, int h);
+	static void draw_background(SDL_Renderer* sdlRenderer, int width, int height);
 	static void do_frame();
 	static void exit();
 	
-	static Rml::String file;
-	static Rml::String mTitle;
-	static SDL_Window* mWindow;
-	static SDL_Renderer* mRenderer;
-	static Rml::Context* mContext;
-	static RmlUiSDL2SystemInterface mSystemInterface;
-	static int window_width;
-	static int window_height;
-	static bool active;
+	static SDL_Window* mSdlWindow;
+	static SDL_Renderer* mSdlRenderer;
+	static FileInterface* mFileInterface;
+    static SystemInterface* mSystemInterface;
+    static RenderInterface* mRenderInterface;
+	static Rml::Context* mRmlContext;
+	static Rml::String mFile;
+    static Rml::String mTitle;
+    static int mX;
+    static int mY;
+	static int mWidth;
+	static int mHeight;
+	static bool mActive;
 };
 
 
-
+/*
 #ifdef IOS
 @interface iphoneViewerAppDelegate : NSObject <UIApplicationDelegate, UIAccelerometerDelegate>{
 	UIAccelerationValue        accel[3];
 }
 
 @property (nonatomic, retain) UIWindow *_window;
-- (void)updateScene;
+	- (void)updateScene;
 @end
 #endif //ISO
+*/
 
-#endif
+#endif //APP_H

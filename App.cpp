@@ -31,19 +31,25 @@
 #include <fstream>
 
 
-bool App::active;
-Rml::String App::file;
+bool App::mActive;
+Rml::String App::mFile;
 Rml::String App::mTitle;
-SDL_Window* App::mWindow;
-SDL_Renderer* App::mRenderer;
-Rml::Context* App::mContext;
-RmlUiSDL2SystemInterface App::mSystemInterface;
+SDL_Window* App::mSdlWindow;
+SDL_Renderer* App::mSdlRenderer;
+Rml::Context* App::mRmlContext;
+FileInterface* App::mFileInterface;
+SystemInterface* App::mSystemInterface;
+RenderInterface* App::mRenderInterface;
 #ifdef IOS
-int App::window_width = 320;
-int App::window_height = 480;
+int App::mX = 0;
+int App::mY = 0;
+int App::mWidth = 320;
+int App::mHeight = 480;
 #else
-int App::window_width = 800;
-int App::window_height = 600;
+int App::mX = SDL_WINDOWPOS_CENTERED;
+int App::mY = SDL_WINDOWPOS_CENTERED;
+int App::mWidth = 800;
+int App::mHeight = 600;
 #endif
 
 void App::init()
@@ -51,54 +57,39 @@ void App::init()
 #ifdef RMLUI_PLATFORM_WIN32
 	//AllocConsole();
 #endif
-    SDL_SetMainReady(); //Bypass SDLmain  //https://wiki.libsdl.org/SDL_SetMainReady
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 		printf("ERROR: SDL_Init( SDL_INIT_VIDEO ) failed: %s\n", SDL_GetError());
 
-    SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
-#if defined(ANDROID) || defined(IOS)
-    printf("Creating SDLWindow for mobile device\n");
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles");
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_Window* sdl_window;
-    SDL_Renderer* renderer;
-    if(SDL_CreateWindowAndRenderer(window_width, window_height, SDL_WINDOW_RESIZABLE, &sdl_window, &renderer) < 0)
-        printf("SDL_Window* invalid: %s\n", SDL_GetError());
-#else
-	SDL_Window* sdl_window = SDL_CreateWindow("RmlUi SDL2 with SDL_Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_RESIZABLE);
-	if (!sdl_window)
+    //SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+	SDL_Window* sdlWindow = SDL_CreateWindow("RmlUi SDL2 with SDL_Renderer", mX, mY, mWidth, mHeight, SDL_WINDOW_RESIZABLE);
+	if (!sdlWindow)
 		printf("SDL_Window* invalid: %s\n", SDL_GetError());
-	mWindow = sdl_window;
+	mSdlWindow = sdlWindow;
 
-	SDL_Renderer* renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
-	if (!renderer)
-		printf("renderer invalid: %s\n", SDL_GetError());
-	mRenderer = renderer;
-#endif
+    SDL_Renderer* sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, 0);//SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
+	if (!sdlRenderer)
+		printf("SDL renderer invalid: %s\n", SDL_GetError());
+	mSdlRenderer = sdlRenderer;
     
-	SDL_RendererInfo info;
-	if (SDL_GetRendererInfo(mRenderer, &info) < 0)
+	SDL_RendererInfo sdlRenderinfo;
+	if (SDL_GetRendererInfo(mSdlRenderer, &sdlRenderinfo) < 0)
 		printf("SDL_GetRendererInfo() failed: %s\n", SDL_GetError());
 
 	// Print the SDL_Render name, and display it in the mTitle bar
-	Rml::String renderer_name = info.name;
-	printf("SDL_Renderer Driver = %s\n", renderer_name.c_str());
-	mTitle = Rml::String("SDL_Renderer RmlUi - " + renderer_name);
-	SDL_SetWindowTitle(sdl_window, mTitle.c_str());
+	Rml::String rendererName = sdlRenderinfo.name;
+	printf("SDL_Renderer Driver = %s\n", rendererName.c_str());
+	mTitle = Rml::String("SDL_Renderer RmlUi - " + rendererName);
+	SDL_SetWindowTitle(sdlWindow, mTitle.c_str());
 
-	RmlUiSDL2Renderer Renderer(mRenderer, mWindow);
-
-	FileInterfaceSDL2 FileInterface(FileInterfaceSDL2::FindSamplesRoot(App::file));
-	Rml::SetFileInterface(&FileInterface);
-	
-	Rml::SetRenderInterface(&Renderer);
-	Rml::SetSystemInterface(&mSystemInterface);
-
+    mFileInterface = new FileInterface( FileInterface::FindAssets(App::mFile) );
+    Rml::SetFileInterface(mFileInterface);
+    
+    mSystemInterface = new SystemInterface;
+    Rml::SetSystemInterface(mSystemInterface);
+    
+	mRenderInterface = new RenderInterface(mSdlRenderer, mSdlWindow);
+    Rml::SetRenderInterface(mRenderInterface);
+    
 	if (!Rml::Initialise())
 		printf("Rml::Initialise() failed\n");
 
@@ -119,51 +110,52 @@ void App::init()
 		Rml::LoadFontFace("assets/" + face.filename, face.fallback_face);
 	}
 
-	Rml::Context* Context = Rml::CreateContext("default",
-		Rml::Vector2i(window_width, window_height));
-	mContext = Context;
+	Rml::Context* rmlContext = Rml::CreateContext("default", Rml::Vector2i(mWidth, mHeight) );
+	mRmlContext = rmlContext;
 
-	Rml::Debugger::Initialise(Context);
-	if (App::file.empty())
+	Rml::Debugger::Initialise(rmlContext);
+	if (mFile.empty())
 	{
-		App::file = "assets/demo.rml";
+		mFile = "assets/demo.rml";
 	}
-	Rml::ElementDocument* Document = Context->LoadDocument(App::file); //Path to resources
+	Rml::ElementDocument* rmlDocument = rmlContext->LoadDocument(mFile); //Path to resources
 
-	if (Document) {
-		Document->Show();
+	if (rmlDocument) {
+		rmlDocument->Show();
 		fprintf(stdout, "Document loaded\n");
 	}
 	else {
 		fprintf(stdout, "Document is nullptr\n");
 	}
-	App::active = true;
-	App::loop();
-	App::exit();
+	mActive = true;
+//#ifndef IOS
+	loop();
+	exit();
+//#endif
 }
 
 
 void App::loop()
 {
-	while (App::active)
+	while (mActive)
 	{
 		Framerate::LimitFramerate(120);
-		App::do_frame();
+		do_frame();
 	}
 }
 	
-void App::draw_background(SDL_Renderer* renderer, int w, int h)
+void App::draw_background(SDL_Renderer* sdlRenderer, int width, int height)
 {
-	SDL_Color col[2] = { { 100, 100, 100, 255 }, { 150, 150, 150, 255 } };
-	SDL_Rect rect({ 0,0,8,8 });
+	SDL_Color sdlColor[2] = { { 100, 100, 100, 255 }, { 150, 150, 150, 255 } };
+	SDL_Rect sdlRect({ 0,0,8,8 });
 	int i, x, y;
-	for (y = 0; y < h; y += rect.h) {
-		for (x = 0; x < w; x += rect.w) {
+	for (y = 0; y < height; y += sdlRect.h) {
+		for (x = 0; x < width; x += sdlRect.w) {
 			i = (((x ^ y) >> 3) & 1);
-			rect.x = x;
-			rect.y = y;
-			SDL_SetRenderDrawColor(renderer, col[i].r, col[i].g, col[i].b, col[i].a);
-			SDL_RenderFillRect(renderer, &rect);
+			sdlRect.x = x;
+			sdlRect.y = y;
+			SDL_SetRenderDrawColor(sdlRenderer, sdlColor[i].r, sdlColor[i].g, sdlColor[i].b, sdlColor[i].a);
+			SDL_RenderFillRect(sdlRenderer, &sdlRect);
 		}
 	}
 }
@@ -172,40 +164,44 @@ void App::do_frame()
 {
 	SDL_Event event;
 
-	SDL_RenderClear(mRenderer);
+	SDL_RenderClear(mSdlRenderer);
 
 	//adjust the Context if the window is resized
-	SDL_GetWindowSize(mWindow, &window_width, &window_height);
-	if (window_width != mContext->GetDimensions().x || window_height != mContext->GetDimensions().y)
+	SDL_GetWindowSize(mSdlWindow, &mWidth, &mHeight);
+    if(!mRmlContext){
+        printf("ERROR: The context is invalid\n");
+        return;
+    }
+	if (mWidth != mRmlContext->GetDimensions().x || mHeight != mRmlContext->GetDimensions().y)
 	{
-		mContext->SetDimensions(Rml::Vector2i(window_width, window_height));
+		mRmlContext->SetDimensions(Rml::Vector2i(mWidth, mHeight));
 	}
 	
-	draw_background(mRenderer, window_width, window_height);
-	mContext->Render();
-	SDL_RenderPresent(mRenderer);
+	draw_background(mSdlRenderer, mWidth, mHeight);
+	mRmlContext->Render();
+	SDL_RenderPresent(mSdlRenderer);
 
 	while (SDL_PollEvent(&event))
 	{
 		switch (event.type)
 		{
 		case SDL_QUIT:
-			active = false;
+			mActive = false;
 			break;
 
 		case SDL_MOUSEMOTION:
-			mContext->ProcessMouseMove(event.motion.x, event.motion.y, mSystemInterface.GetKeyModifiers());
+			mRmlContext->ProcessMouseMove(event.motion.x, event.motion.y, mSystemInterface->GetKeyModifiers());
 			break;
 		case SDL_MOUSEBUTTONDOWN:
-			mContext->ProcessMouseButtonDown(mSystemInterface.TranslateMouseButton(event.button.button), mSystemInterface.GetKeyModifiers());
+			mRmlContext->ProcessMouseButtonDown(mSystemInterface->TranslateMouseButton(event.button.button), mSystemInterface->GetKeyModifiers());
 			break;
 
 		case SDL_MOUSEBUTTONUP:
-			mContext->ProcessMouseButtonUp(mSystemInterface.TranslateMouseButton(event.button.button), mSystemInterface.GetKeyModifiers());
+			mRmlContext->ProcessMouseButtonUp(mSystemInterface->TranslateMouseButton(event.button.button), mSystemInterface->GetKeyModifiers());
 			break;
 
 		case SDL_MOUSEWHEEL:
-			mContext->ProcessMouseWheel(float(event.wheel.y), mSystemInterface.GetKeyModifiers());
+			mRmlContext->ProcessMouseWheel(float(event.wheel.y), mSystemInterface->GetKeyModifiers());
 			break;
 
 		case SDL_KEYDOWN:
@@ -214,8 +210,8 @@ void App::do_frame()
 			if (event.key.keysym.sym == SDLK_F11)
 			{
 				long FullscreenFlag = SDL_WINDOW_FULLSCREEN;
-				bool isFullscreen = ((SDL_GetWindowFlags(mWindow) & FullscreenFlag) != 0);
-				isFullscreen ? SDL_SetWindowFullscreen(mWindow, 0) : SDL_SetWindowFullscreen(mWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+				bool isFullscreen = ((SDL_GetWindowFlags(mSdlWindow) & FullscreenFlag) != 0);
+				isFullscreen ? SDL_SetWindowFullscreen(mSdlWindow, 0) : SDL_SetWindowFullscreen(mSdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
 				break;
 			}
 			// Intercept F12 key stroke to toggle RmlUi's visual debugger tool
@@ -225,7 +221,7 @@ void App::do_frame()
 				break;
 			}
 
-			mContext->ProcessKeyDown(mSystemInterface.TranslateKey(event.key.keysym.sym), mSystemInterface.GetKeyModifiers());
+			mRmlContext->ProcessKeyDown(mSystemInterface->TranslateKey(event.key.keysym.sym), mSystemInterface->GetKeyModifiers());
 			break;
 		}
 
@@ -233,38 +229,18 @@ void App::do_frame()
 			break;
 		}
 	}
-	mContext->Update();
+	mRmlContext->Update();
 
 	// update framerate in the window Titlebar
-	Rml::String post_mTitle = mTitle + " : " + std::to_string(Framerate::GetFps()) + "fps";
-	SDL_SetWindowTitle(mWindow, post_mTitle.c_str());
+	Rml::String title = mTitle + " : " + std::to_string(Framerate::GetFps()) + "fps";
+	SDL_SetWindowTitle(mSdlWindow, title.c_str());
 }
 
 void App::exit() 
 {
-	active = false;
+	mActive = false;
 	Rml::Shutdown();
-    SDL_DestroyRenderer(mRenderer);
-    SDL_DestroyWindow(mWindow);
+    SDL_DestroyRenderer(mSdlRenderer);
+    SDL_DestroyWindow(mSdlWindow);
     SDL_Quit();
-}
-
-
-
-int main(int argc, char** argv)
-{
-#ifdef IOS
-	@autoreleasepool{
-		return UIApplicationMain(argc, argv, nil, @"iphoneViewerAppDelegate");
-	}
-#else
-	App app();
-
-	if (argc > 1){
-		App::file = argv[1];
-	}
-
-	App::init();
-#endif
-	return 0;
 }
